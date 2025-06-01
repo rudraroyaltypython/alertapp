@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Alert App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        body {
+            background-color: #f1faff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #168aad;
+            margin-bottom: 30px;
+        }
+
+        #alertBtn {
+            background-color: #184e77;
+            color: white;
+            font-size: 1.2em;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #alertBtn:hover {
+            background-color: #126d9b;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #0b3d91;
+            font-weight: bold;
+            animation: fadeIn 0.6s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🚨 Emergency Alert</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <button id="alertBtn" type="button">Send Alert with Location</button>
+    </form>
+
+    <p id="status"></p>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.getElementById('alertBtn').addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser.');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                try {
+                    const response = await fetch('/send_alert/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ latitude: lat, longitude: lng, message: "Emergency alert!" })
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.status === "Alert sent") {
+                        document.getElementById('status').innerText = '✅ Alert sent via Telegram!';
+                    } else {
+                        document.getElementById('status').innerText = '❌ Failed to send alert: ' + (data.error || 'Unknown error');
+                    }
+                } catch (error) {
+                    document.getElementById('status').innerText = '❌ Error sending alert: ' + error.message;
+                }
+            }, () => {
+                alert('Unable to retrieve your location.');
+            });
+        });
+    </script>
+</body>
+
+</html>
